@@ -1,0 +1,166 @@
+	<!DOCTYPE html>
+	<html>
+	<head>
+		<title>
+			Video Calling
+		</title>
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	  	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	  	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	  	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+		<link rel="stylesheet" type="text/css" href="style.css"/>
+	</head>
+	<body>
+
+	<div id="vid-box" align="center">
+	<img src="video_camera.png" id="video_camera" alt="video_camera" width="200" height="200">	
+	</div>
+	<div id="vid-thumb" align="center"></div>
+	<div id="img-thumb" align="center" style="overflow: scroll;"></div>
+
+	<form name="loginForm" id="login" action="#" onsubmit="return login(this);">
+	    <input type="text" name="username" id="username" placeholder="Pick a username!" />
+	    <input type="submit" name="login_submit" value="Log In" id="log_in"/>
+	</form>
+
+	<form name="callForm" id="call" action="#" style="display: none;" onsubmit="return makeCall(this);">
+		<input type="text" name="number" placeholder="Enter user to dial!"/>
+		<input type="submit" value="Call" id="call_1"/>
+	</form>
+
+	<div id="inCall" style="display: none;">
+		<button id="end" onclick="end()" class="btn btn-primary">End</button> 
+		<button id="mute" onclick="mute()" class="btn btn-warning">Mute</button> 
+		<button id="pause" onclick="pause()" class="btn btn-danger">Pause</button>
+		<button id="snap" onclick="snap()" class="btn btn-success">Snap</button>
+	</div>
+
+	<form name="messageForm" id="message" action="#" style="display: none;" onsubmit="return messagesend(this);">
+		<input type="text" name="message" placeholder="Enter message" id="t-message" />
+		<input type="submit" value="Send" />
+	</form>
+
+	<div id="chatdiv" style="display: none;">
+	    <div id="chat-out" align="center" style="height : 150px; width:150px; overflow: scroll;"></div>
+	</div>
+
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+	<script src="https://cdn.pubnub.com/pubnub-3.7.14.min.js"></script>
+	<script src="https://cdn.pubnub.com/webrtc/webrtc.js"></script>
+	<script src="https://cdn.pubnub.com/webrtc/rtc-controller.js"></script>
+
+	<script type="text/javascript">
+		var video_out = document.getElementById("vid-box");
+		var vid_thumb = document.getElementById("vid-thumb");
+		var chat_out = document.getElementById("chat-out");
+		
+		function login(form) 
+		{
+			var x = document.getElementById('log_in').hidden=true;
+			var y = document.getElementById('call').style.display="block";
+
+			var phone = window.phone = PHONE({
+			    number        : form.username.value || "Anonymous", 
+			    publish_key   : 'pub-c-eadc5deb-5812-4386-8157-fd4f8f3e90b3',
+			    subscribe_key : 'sub-c-15c5e91e-a6d3-11e7-88d7-aa3d3dcf7b8c',
+		});	
+
+		var ctrl = window.ctrl = CONTROLLER(phone);
+
+		ctrl.ready(function()
+		{
+			var x = document.getElementById('video_camera').hidden=true;
+
+			form.username.style.background="#55ff5b";
+			form.login_submit.hidden="true";	
+			ctrl.addLocalStream(vid_thumb);
+			//$('#vid-thumb').append(phone.video);
+		});
+
+		ctrl.receive(function(session)
+		{
+			session.connected(function(session)
+				{
+					var x = document.getElementById('call').style.display="none";
+					var y = document.getElementById('inCall').style.display="block";
+					var z = document.getElementById('message').style.display="block";
+					var w = document.getElementById('chatdiv').style.display="block";
+
+					video_out.appendChild(session.video); 
+				}
+			);
+			session.ended(function(session) 
+				{ 
+					ctrl.getVideoElement(session.number).remove();
+				}
+			);
+			session.thumbnail(function(session) 
+				{
+					$('#img-thumb').append(session.image);
+				}
+			);
+			phone.message(function(session,message)
+				{	
+					addchat(session.number,message.text);
+				}
+			);
+
+		});
+		
+		return false;
+	}
+
+	function makeCall(form)
+	{
+		if (!window.phone) alert("Login First!");
+		else phone.dial(form.number.value);
+		return false;
+	}
+
+	function messagesend(form)
+	{
+		var message=document.getElementById("t-message").value;	
+		phone.send({text : message});
+		addchat(phone.number(), message);
+		document.getElementById("t-message").value = "";
+		return false;
+	}
+
+	function addchat(number,message)
+	{
+		 var p = document.createElement("P");
+		 var mess = document.createTextNode(number +": "+ message);
+		 p.appendChild(mess);
+
+	    chat_out.insertBefore(p, chat_out.firstChild);
+	}
+
+	function end()
+	{
+		ctrl.hangup();
+	}
+
+	function mute()
+	{
+		var audio = ctrl.toggleAudio();
+		if (!audio) $("#mute").html("Unmute");
+		else $("#mute").html("Mute");
+	}
+
+	function pause()
+	{
+		var video = ctrl.toggleVideo();
+		if (!video) $('#pause').html('Unpause');
+		else $('#pause').html('Pause');
+	}
+
+	function snap()
+	{
+		var photo =phone.snap();
+		$('#img-thumb').append(photo.image);
+	}
+	</script>
+
+
+	</body>
+	</html>
